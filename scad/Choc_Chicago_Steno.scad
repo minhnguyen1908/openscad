@@ -18,7 +18,7 @@ keycap(
   stemType = "cross", //2-prongs or cross-stem.
   StemRot = 0, //change stem orientation by deg
   Dish   = true, //turn on dish cut
-  Stab   = 0, 
+  Stab   = 0,
   visualizeDish = false, // turn on debug visual of Dish 
   crossSection  = false, // center cut to check internal
   homeDot = true, //turn on homedots
@@ -27,7 +27,6 @@ keycap(
 
 //-Parameters
 wallthickness = 1.1; // 1.75 for mx size, 1.1
-topthickness = 2.5; //2 for phat 3 for chicago
 stepsize = 50;  //resolution of Trajectory
 step = 2;       //resolution of ellipes 
 fn = 32;          //resolution of Rounded Rectangles: 60 for output
@@ -253,7 +252,18 @@ function StemRadius(t, keyID) = pow(t/stemLayers,3)*3 + (1-pow(t/stemLayers, 3))
 
 
 ///----- KEY Builder Module
-module keycap(keyID = 0, cutLen = 0, visualizeDish = false, crossSection = false, Dish = true, Stem = false, stemType = "cross", StemRot = 0, homeDot = false, Stab = 0, Legends = false) {
+module keycap(
+                keyID = 0,
+                cutLen = 0,
+                visualizeDish = false,
+                crossSection = false,
+                Dish = true,
+                Stem = false,
+                stemType = "cross",
+                StemRot = 0,
+                homeDot = false,
+                Stab = 0,
+                Legends = false) {
   
   //Set Parameters for dish shape
   FrontPath = quantize_trajectories(FrontTrajectory(keyID), steps = stepsize, loop=false);
@@ -267,51 +277,40 @@ module keycap(keyID = 0, cutLen = 0, visualizeDish = false, crossSection = false
   BackCurve  = [ for(i=[0:len(BackPath)-1])  transform(BackPath[i],  DishShape(DishDepth(keyID),  BackDishArc(i), 1, d = 0)) ];
 
   //builds
-  difference(){
+difference(){
     union(){
       difference(){
-        skin([for (i=[0:layers-1]) transform(translation(CapTranslation(i, keyID)) * rotation(CapRotation(i, keyID)), elliptical_rectangle(CapTransform(i, keyID), b = CapRoundness(i,keyID),fn=fn))]); //outer shell
+        skin([for (i=[0:layers-1]) transform(translation(CapTranslation(i, keyID)) * rotation(CapRotation(i, keyID)), elliptical_rectangle(CapTransform(i, keyID), b = CapRoundness(i,keyID),fn=fn))]);
         
-        //Cut inner shell
         if(Stem == true){ 
           translate([0,0,-.001])skin([for (i=[0:layers-1]) transform(translation(InnerTranslation(i, keyID)) * rotation(CapRotation(i, keyID)), elliptical_rectangle(InnerTransform(i, keyID), b = CapRoundness(i,keyID),fn=fn))]);
         }
       }
+      // STEM PLACEMENT
       if(Stem == true){
         rotate([0,0,StemRot]){
-          choc_stem(id = keyID, draftAng = draftAngle); 
-          if (Stab != 0){
-            // no need for stab
-          }
-          translate([0,0,-.001])skin([for (i=[0:stemLayers-1]) transform(translation(StemTranslation(i,keyID))*rotation(StemRotation(i, keyID)), rounded_rectangle_profile(StemTransform(i, keyID),fn=fn,r=StemRadius(i, keyID)))]); //outer shell
+          // This call goes to our unified library
+          choc_stem_selector(id = keyID, type = stemType, draftAng = draftAngle);
+          
+          // Shroud logic
+          translate([0,0,-.001])skin([for (i=[0:stemLayers-1]) transform(translation(StemTranslation(i,keyID))*rotation(StemRotation(i, keyID)), rounded_rectangle_profile(StemTransform(i, keyID),fn=fn,r=StemRadius(i, keyID)))]);
         }
       }
     }
     
-    //Cuts
-    //Fonts
-    if(cutLen != 0){
-      translate([sign(cutLen)*(BottomLength(keyID)+CapRound0i(keyID)+abs(cutLen))/2,0,0])
-        cube([BottomWidth(keyID)+CapRound1i(keyID)+1,BottomLength(keyID)+CapRound0i(keyID),50], center = true);
-    }
-    if(Legends ==  true){
-      #rotate([-XAngleSkew(keyID),YAngleSkew(keyID),ZAngleSkew(keyID)])translate([-1,-5,KeyHeight(keyID)-2.5])linear_extrude(height = 1)text( text = "ver2", font = "Constantia:style=Bold", size = 3, valign = "center", halign = "center" );
-      }
-   //Dish Shape 
+    // THE CUTTERS (Dish and Section)
     if(Dish == true){
-     if(visualizeDish == false){
-      translate([-TopWidShift(keyID),.0001-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(FrontCurve);
-      translate([-TopWidShift(keyID),-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(BackCurve);
-     } else {
-      #translate([-TopWidShift(keyID),.0001-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)]) rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(FrontCurve);
-      #translate([-TopWidShift(keyID),-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(BackCurve);
-     }
-   }
-     if(crossSection == true) {
-       translate([0,-25,-.1])cube([15,50,15]); 
-     }
+       // This part will now "trim" the extra 2mm of the stem!
+       translate([-TopWidShift(keyID),.0001-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(FrontCurve);
+       translate([-TopWidShift(keyID),-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(BackCurve);
+    }
+
+    if(crossSection == true) {
+       translate([0,-25,-.1])cube([15,50,15]);
+    }
   }
-  //Homing dot
+
+  // Homing dot (Added AFTER the difference so it stays on top)
   if(homeDot == true){
     translate([2,-4.5,KeyHeight(keyID)-DishHeightDif(keyID)+.15])sphere(d = 1);
     translate([-2,-4.5,KeyHeight(keyID)-DishHeightDif(keyID)+.15])sphere(d = 1);
@@ -320,88 +319,6 @@ module keycap(keyID = 0, cutLen = 0, visualizeDish = false, crossSection = false
 
 //------------------stems 
 $fn = fn;
-/*
-module choc_stem(draftAng = 5) {
-  stemHeight = 3.1;
-  dia = .15;
-  wids = 1.2/2;
-  lens = 2.9/2; 
-  module Stem() {
-    difference(){
-      translate([0,0,-stemHeight/2])linear_extrude(height = stemHeight)hull(){
-        translate([wids-dia,-3/2])circle(d=dia);
-        translate([-wids+dia,-3/2])circle(d=dia);
-        translate([wids-dia, 3/2])circle(d=dia);
-        translate([-wids+dia, 3/2])circle(d=dia);
-      }
-
-    //cuts
-      translate([3.9,0])cylinder(d1=7+sin(draftAng)*stemHeight, d2=7,3.5, center = true, $fn = 64);
-      translate([-3.9,0])cylinder(d1=7+sin(draftAng)*stemHeight,d2=7,3.5, center = true, $fn = 64);
-    }
-  }
-
-  translate([5.7/2,0,-stemHeight/2+2])Stem();
-  translate([-5.7/2,0,-stemHeight/2+2])Stem();
-}
-module choc_stem(keyID = keyID) {
-    original_cross_stem(keyID = keyID);
-}
-*/
-// --- LOCALIZED CHOC V2 STEM MODULE ---
-// Place this at the bottom of Choc_Chicago_Steno.scad
-
-module choc_stem(id, draftAng) {
-    // 1. Dependency Check
-    // We use the EXACT variable name from our debug session
-    total_h = KeyHeight(id);
-    
-    // 2. The Logic: 
-    // We make the pillar taller than the keycap (+2.0)
-    // Because this module is called inside the difference() block
-    // the Dish logic will automatically trim the top perfectly.
-    pillar_h = total_h - StemBrimDep + 2.0;
-
-    // 3. MX Cross Math (Preserved exactly from your snippet)
-    MXWid = 4.03/2 + Tol; 
-    MXLen = 4.23/2 + Tol;
-    MXWidT = 1.15/2 + Tol;
-    MXLenT = 1.25/2 + Tol;
-
-    function stem_internal(sc=1) = sc*[
-        [MXLenT, MXLen],[MXLenT, MXWidT],[MXWid, MXWidT],
-        [MXWid, -MXWidT],[MXLenT, -MXWidT],[MXLenT, -MXLen],
-        [-MXLenT, -MXLen],[-MXLenT, -MXWidT],[-MXWid, -MXWidT],
-        [-MXWid,MXWidT],[-MXLenT, MXWidT],[-MXLenT, MXLen]
-    ];
-
-    // 4. Trajectory Calculations (Localized to prevent global warnings)
-    path1 = quantize_trajectories([ trajectory(forward = 5.25) ], steps = 1);
-    curve1 = [ for(i=[0:len(path1)-1]) transform(path1[i], stem_internal()) ];
-    
-    path2 = quantize_trajectories([ trajectory(forward = 0.5) ], steps = 10);
-    curve2 = [ for(i=[0:len(path2)-1]) transform(path2[i]*scaling([(1.1-.1*i/(len(path2)-1)),(1.1-.1*i/(len(path2)-1)),1]), stem_internal()) ];
-
-    // 5. Console Debugging
-    echo("--- LOCAL STEM DEBUG ---");
-    echo(ACTIVE_ID = id);
-    echo(MATRIX_HEIGHT = total_h);
-    echo(PILLAR_RENDER_HEIGHT = pillar_h);
-
-    // 6. Execution
-    translate([0, 0, StemBrimDep]) {
-        difference() {
-            // Build the solid pillar
-            cylinder(d = 5.5, h = pillar_h, $fn = 32);
-            
-            // Carve the MX Cross
-            translate([0,0,-0.1]) {
-                skin(curve1);
-                skin(curve2);
-            }
-        }
-    }
-}
 /// ----- helper functions 
 function rounded_rectangle_profile(size=[1,1],r=1,fn=32) = [
 	for (index = [0:fn-1])
