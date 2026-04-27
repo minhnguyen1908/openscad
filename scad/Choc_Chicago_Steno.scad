@@ -5,7 +5,6 @@ use <scad-utils/trajectory.scad>
 use <scad-utils/trajectory_path.scad>
 use <sweep.scad>
 use <skin.scad> 
-include <stems_library.scad>
 //use <z-butt.scad> 
 
 //Choc Chord version Chicago Stenographer
@@ -15,18 +14,18 @@ keycap(
   keyID  = 1, //change profile refer to KeyParameters Struct
   cutLen = 0, //Don't change. for chopped caps
   Stem   = true, //tusn on shell and stems
-  stemType = "cross", //2-prongs or cross-stem.
   StemRot = 0, //change stem orientation by deg
   Dish   = true, //turn on dish cut
-  Stab   = 0,
+  Stab   = 0, 
   visualizeDish = false, // turn on debug visual of Dish 
   crossSection  = false, // center cut to check internal
-  homeDot = true, //turn on homedots
+  homeDot = false, //turn on homedots
   Legends = false
   ); 
 
 //-Parameters
 wallthickness = 1.1; // 1.75 for mx size, 1.1
+topthickness = 2.5; //2 for phat 3 for chicago
 stepsize = 50;  //resolution of Trajectory
 step = 2;       //resolution of ellipes 
 fn = 32;          //resolution of Rounded Rectangles: 60 for output
@@ -252,18 +251,7 @@ function StemRadius(t, keyID) = pow(t/stemLayers,3)*3 + (1-pow(t/stemLayers, 3))
 
 
 ///----- KEY Builder Module
-module keycap(
-                keyID = 0,
-                cutLen = 0,
-                visualizeDish = false,
-                crossSection = false,
-                Dish = true,
-                Stem = false,
-                stemType = "cross",
-                StemRot = 0,
-                homeDot = false,
-                Stab = 0,
-                Legends = false) {
+module keycap(keyID = 0, cutLen = 0, visualizeDish = false, crossSection = false, Dish = true, Stem = false, StemRot = 0, homeDot = false, Stab = 0, Legends = false) {
   
   //Set Parameters for dish shape
   FrontPath = quantize_trajectories(FrontTrajectory(keyID), steps = stepsize, loop=false);
@@ -277,37 +265,51 @@ module keycap(
   BackCurve  = [ for(i=[0:len(BackPath)-1])  transform(BackPath[i],  DishShape(DishDepth(keyID),  BackDishArc(i), 1, d = 0)) ];
 
   //builds
-difference(){
+  difference(){
     union(){
       difference(){
-        skin([for (i=[0:layers-1]) transform(translation(CapTranslation(i, keyID)) * rotation(CapRotation(i, keyID)), elliptical_rectangle(CapTransform(i, keyID), b = CapRoundness(i,keyID),fn=fn))]);
+        skin([for (i=[0:layers-1]) transform(translation(CapTranslation(i, keyID)) * rotation(CapRotation(i, keyID)), elliptical_rectangle(CapTransform(i, keyID), b = CapRoundness(i,keyID),fn=fn))]); //outer shell
         
+        //Cut inner shell
         if(Stem == true){ 
           translate([0,0,-.001])skin([for (i=[0:layers-1]) transform(translation(InnerTranslation(i, keyID)) * rotation(CapRotation(i, keyID)), elliptical_rectangle(InnerTransform(i, keyID), b = CapRoundness(i,keyID),fn=fn))]);
         }
       }
       if(Stem == true){
         rotate([0,0,StemRot]){
-          // CALLING THE UNIFIED DISPATCHER
-          choc_stem_dispatcher(id = keyID, type = stemType, draftAng = draftAngle); 
-          
-          // Shroud logic remains exactly as is
-          translate([0,0,-.001])skin([for (i=[0:stemLayers-1]) transform(translation(StemTranslation(i,keyID))*rotation(StemRotation(i, keyID)), rounded_rectangle_profile(StemTransform(i, keyID),fn=fn,r=StemRadius(i, keyID)))]);
+          choc_stem(draftAng = draftAngle); 
+          if (Stab != 0){
+            // no need for stab
+          }
+          translate([0,0,-.001])skin([for (i=[0:stemLayers-1]) transform(translation(StemTranslation(i,keyID))*rotation(StemRotation(i, keyID)), rounded_rectangle_profile(StemTransform(i, keyID),fn=fn,r=StemRadius(i, keyID)))]); //outer shell
         }
       }
     }
     
-    // DISH CUTTER (Fixed with +0.01 offset to avoid the weird top layer)
+    //Cuts
+    //Fonts
+    if(cutLen != 0){
+      translate([sign(cutLen)*(BottomLength(keyID)+CapRound0i(keyID)+abs(cutLen))/2,0,0])
+        cube([BottomWidth(keyID)+CapRound1i(keyID)+1,BottomLength(keyID)+CapRound0i(keyID),50], center = true);
+    }
+    if(Legends ==  true){
+      #rotate([-XAngleSkew(keyID),YAngleSkew(keyID),ZAngleSkew(keyID)])translate([-1,-5,KeyHeight(keyID)-2.5])linear_extrude(height = 1)text( text = "ver2", font = "Constantia:style=Bold", size = 3, valign = "center", halign = "center" );
+      }
+   //Dish Shape 
     if(Dish == true){
-       translate([-TopWidShift(keyID),.0001-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)+0.01])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(FrontCurve);
-       translate([-TopWidShift(keyID),-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)+0.01])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(BackCurve);
-    }
-
-    if(crossSection == true) {
-       translate([0,-25,-.1])cube([15,50,15]);
-    }
+     if(visualizeDish == false){
+      translate([-TopWidShift(keyID),.0001-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(FrontCurve);
+      translate([-TopWidShift(keyID),-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(BackCurve);
+     } else {
+      #translate([-TopWidShift(keyID),.0001-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)]) rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(FrontCurve);
+      #translate([-TopWidShift(keyID),-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(BackCurve);
+     }
+   }
+     if(crossSection == true) {
+       translate([0,-25,-.1])cube([15,50,15]); 
+     }
   }
-
+  //Homing dot
   if(homeDot == true){
     translate([2,-4.5,KeyHeight(keyID)-DishHeightDif(keyID)+.15])sphere(d = 1);
     translate([-2,-4.5,KeyHeight(keyID)-DishHeightDif(keyID)+.15])sphere(d = 1);
@@ -316,6 +318,30 @@ difference(){
 
 //------------------stems 
 $fn = fn;
+
+module choc_stem(draftAng = 5) {
+  stemHeight = 3.1;
+  dia = .15;
+  wids = 1.2/2;
+  lens = 2.9/2; 
+  module Stem() {
+    difference(){
+      translate([0,0,-stemHeight/2])linear_extrude(height = stemHeight)hull(){
+        translate([wids-dia,-3/2])circle(d=dia);
+        translate([-wids+dia,-3/2])circle(d=dia);
+        translate([wids-dia, 3/2])circle(d=dia);
+        translate([-wids+dia, 3/2])circle(d=dia);
+      }
+
+    //cuts
+      translate([3.9,0])cylinder(d1=7+sin(draftAng)*stemHeight, d2=7,3.5, center = true, $fn = 64);
+      translate([-3.9,0])cylinder(d1=7+sin(draftAng)*stemHeight,d2=7,3.5, center = true, $fn = 64);
+    }
+  }
+
+  translate([5.7/2,0,-stemHeight/2+2])Stem();
+  translate([-5.7/2,0,-stemHeight/2+2])Stem();
+}
 /// ----- helper functions 
 function rounded_rectangle_profile(size=[1,1],r=1,fn=32) = [
 	for (index = [0:fn-1])
