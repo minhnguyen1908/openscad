@@ -280,38 +280,37 @@ module keycap(
 difference(){
     union(){
       difference(){
-        skin([for (i=[0:layers-1]) transform(translation(CapTranslation(i, keyID)) * rotation(CapRotation(i, keyID)), elliptical_rectangle(CapTransform(i, keyID), b = CapRoundness(i,keyID),fn=fn))]); //
+        skin([for (i=[0:layers-1]) transform(translation(CapTranslation(i, keyID)) * rotation(CapRotation(i, keyID)), elliptical_rectangle(CapTransform(i, keyID), b = CapRoundness(i,keyID),fn=fn))]);
         
         if(Stem == true){ 
-          translate([0,0,-.001])skin([for (i=[0:layers-1]) transform(translation(InnerTranslation(i, keyID)) * rotation(CapRotation(i, keyID)), elliptical_rectangle(InnerTransform(i, keyID), b = CapRoundness(i,keyID),fn=fn))]); //
+          translate([0,0,-.001])skin([for (i=[0:layers-1]) transform(translation(InnerTranslation(i, keyID)) * rotation(CapRotation(i, keyID)), elliptical_rectangle(InnerTransform(i, keyID), b = CapRoundness(i,keyID),fn=fn))]);
         }
       }
       if(Stem == true){
         rotate([0,0,StemRot]){
           // CALLING THE UNIFIED DISPATCHER
-          choc_stem(id = keyID, type = stemType, draftAng = draftAngle); 
+          choc_stem_dispatcher(id = keyID, type = stemType, draftAng = draftAngle); 
           
-          // Shroud logic remains same
+          // Shroud logic remains exactly as is
           translate([0,0,-.001])skin([for (i=[0:stemLayers-1]) transform(translation(StemTranslation(i,keyID))*rotation(StemRotation(i, keyID)), rounded_rectangle_profile(StemTransform(i, keyID),fn=fn,r=StemRadius(i, keyID)))]);
         }
       }
     }
     
-    // DISH CUTTER - This is what fixes the "Render" look!
+    // DISH CUTTER (Fixed with +0.01 offset to avoid the weird top layer)
     if(Dish == true){
-      translate([-TopWidShift(keyID),.0001-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(FrontCurve); //
-      translate([-TopWidShift(keyID),-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(BackCurve); //
+       translate([-TopWidShift(keyID),.0001-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)+0.01])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(FrontCurve);
+       translate([-TopWidShift(keyID),-TopLenShift(keyID),KeyHeight(keyID)-DishHeightDif(keyID)+0.01])rotate([0,-YAngleSkew(keyID),0])rotate([0,-90+XAngleSkew(keyID),90-ZAngleSkew(keyID)])skin(BackCurve);
     }
 
     if(crossSection == true) {
-       translate([0,-25,-.1])cube([15,50,15]); //
+       translate([0,-25,-.1])cube([15,50,15]);
     }
   }
 
-  // Homing dot (AFTER the difference)
   if(homeDot == true){
-    translate([2,-4.5,KeyHeight(keyID)-DishHeightDif(keyID)+.15])sphere(d = 1); //
-    translate([-2,-4.5,KeyHeight(keyID)-DishHeightDif(keyID)+.15])sphere(d = 1); //
+    translate([2,-4.5,KeyHeight(keyID)-DishHeightDif(keyID)+.15])sphere(d = 1);
+    translate([-2,-4.5,KeyHeight(keyID)-DishHeightDif(keyID)+.15])sphere(d = 1);
   }
 }
 
